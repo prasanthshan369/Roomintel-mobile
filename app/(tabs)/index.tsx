@@ -1,100 +1,66 @@
+import ImportedURL from "@/components/common/urls";
+import { useAppDispatch, useAppSelector } from "@/components/redux/hooks";
+import { fetchRooms } from "@/components/redux/slices/roomSlice";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    Dimensions,
+    ActivityIndicator,
+    Alert,
     FlatList,
     Image,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../constants/ThemeContext";
 
-const { width } = Dimensions.get("window");
 
 const CATEGORIES = ["All", "Recommended", "Popular", "Trending", "Luxury"];
 
-interface Hotel {
-    id: string;
-    name: string;
-    location: string;
-    price: string;
-    rating: number;
-    image: string;
-    description?: string;
-}
 
-const HOTELS: Hotel[] = [
-    {
-        id: "1",
-        name: "Oceanview Resort",
-        location: "Maldives",
-        price: "$320",
-        rating: 4.8,
-        image:
-            "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-        description: "Experience luxury living with breathtaking ocean views.",
-    },
-    {
-        id: "2",
-        name: "Mountain Retreat",
-        location: "Swiss Alps",
-        price: "$450",
-        rating: 4.9,
-        image:
-            "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-        description: "Cozy cabin vibes in the heart of the mountains.",
-    },
-    {
-        id: "3",
-        name: "Urban Oasis",
-        location: "Tokyo, Japan",
-        price: "$210",
-        rating: 4.6,
-        image:
-            "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-        description: "Modern stay in the bustling city center.",
-    },
-];
-
-const NEARBY_HOTELS: Hotel[] = [
-    {
-        id: "4",
-        name: "City Center Hotel",
-        location: "London, UK",
-        price: "$180",
-        rating: 4.5,
-        image:
-            "https://images.unsplash.com/photo-1455587734955-081b22074882?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    },
-    {
-        id: "5",
-        name: "Grand Plaza",
-        location: "Paris, France",
-        price: "$290",
-        rating: 4.7,
-        image:
-            "https://images.unsplash.com/photo-1564501049412-61c2a3083791?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    },
-    {
-        id: "6",
-        name: "Seaside Villa",
-        location: "Amalfi Coast, Italy",
-        price: "$400",
-        rating: 4.9,
-        image:
-            "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    },
-];
 
 export default function HomeScreen() {
     const router = useRouter();
     const [activeCategory, setActiveCategory] = useState("Recommended");
     const { isDarkMode, colors } = useTheme();
+
+    const dispatch = useAppDispatch();
+    const { rooms, loading, errorMessage } = useAppSelector((state) => state.rooms);
+
+    // Fetch token from AsyncStorage and then fetch rooms
+    useEffect(() => {
+        const loadTokenAndFetchRooms = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                console.log('Token from AsyncStorage:', token);
+                
+                if (token) {
+                    console.log('Fetching rooms with token...');
+                    dispatch(fetchRooms(token));
+                } else {
+                    console.log('No token available in AsyncStorage');
+                }
+            } catch (error) {
+                console.error('Error retrieving token from AsyncStorage:', error);
+            }
+        };
+
+        loadTokenAndFetchRooms();
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (errorMessage) {
+            console.error('Error message:', errorMessage);
+            Alert.alert('Error', errorMessage);
+        }
+    }, [errorMessage]);
+
+
 
     const renderCategoryItem = ({ item }: { item: string }) => (
         <TouchableOpacity
@@ -115,71 +81,112 @@ export default function HomeScreen() {
         </TouchableOpacity>
     );
 
-    const renderHotelCard = ({ item }: { item: Hotel }) => (
-        <TouchableOpacity
-            onPress={() => router.push(`/hotel/${item.id}`)}
-            className="mr-6 rounded-2xl shadow-sm w-72 mb-4"
-            style={{ backgroundColor: colors.card }}
-        >
-            <Image
-                source={{ uri: item.image }}
-                className="w-full h-48 rounded-t-2xl"
-                resizeMode="cover"
-            />
-            <View className="px-4 py-4 space-y-2">
-                <View className="flex-row justify-between items-center">
-                    <Text className="text-base font-normal text-secondary line-clamp-1 flex-1 mr-2">
-                        10% Off
-                    </Text>
-                    <View className="flex-row items-center space-x-1">
-                        <Ionicons name="star" size={16} color="#fbbf24" />
-                        <Text className="font-bold" style={{ color: colors.text }}>{item.rating}</Text>
-                    </View>
-                </View>
-                <Text className="text-xl font-bold line-clamp-1 flex-1 mr-2" style={{ color: colors.text }}>
-                    {item.name}
-                </Text>
-                <View className="flex-row items-center space-x-1">
-                    <Ionicons name="location-sharp" size={16} color="#9ca3af" />
-                    <Text className="text-sm line-clamp-1" style={{ color: colors.textSecondary }}>
-                        {item.location}
-                    </Text>
-                </View>
-                <View className="flex-row items-end space-x-1 mt-1">
-                    <Text className="text-secondary font-bold text-lg">{item.price}</Text>
-                    <Text className="text-sm mb-0.5" style={{ color: colors.textSecondary }}>/Day</Text>
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
+    const getImageUrl = (value: string) => {
+        if (!value || value.trim() === '') {
+            return 'https://via.placeholder.com/300?text=No+Image';
+        }
+        // Check if full URL (starts with 'http')
+        const src = value.startsWith('http') ? value : `${ImportedURL.FILEURL}${value}`;
+        return src;
+    };
 
-    const renderNearbyItem = ({ item }: { item: Hotel }) => (
-        <TouchableOpacity
-            onPress={() => router.push(`/hotel/${item.id}`)}
-            className="flex-row rounded-xl shadow-sm p-3 mb-4 items-center"
-            style={{ backgroundColor: colors.card }}
-        >
-            <Image
-                source={{ uri: item.image }}
-                className="w-24 h-24 rounded-lg"
-                resizeMode="cover"
-            />
-            <View className="flex-1 ml-4 space-y-2">
-                <View className="flex-row justify-between">
-                    <Text className="text-lg font-bold flex-1 mr-2" style={{ color: colors.text }}>{item.name}</Text>
+    const renderHotelCard = ({ item }: { item: any }) => {
+        const displayName = item?.name || item?.title || 'Unnamed Room';
+        const displayLocation = item?.location || item?.address || 'No location';
+        const displayPrice = item?.price || item?.pricePerDay || '$0';
+        const displayRating = item?.rating || 4.5;
+        const rawImage = item?.previewImage || item?.image || item?.thumbnail || item?.imageUrl || item?.photo;
+        const displayImage = getImageUrl(rawImage);
+
+        return (
+            <TouchableOpacity
+                onPress={() => {
+                    console.log(item)
+                    router.push(`/hotel/${item._id || item.id}`)
+                }}
+                className="mr-6 rounded-2xl shadow-sm w-72 mb-4"
+                style={{ backgroundColor: colors.card }}
+            >
+                <Image
+                    source={{ uri: displayImage }}
+                    style={{ 
+                        width: '100%', 
+                        height: 200,
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        backgroundColor: colors.card,
+                    }}
+                    resizeMode="cover"
+                />
+                <View className="px-4 py-4 space-y-2">
+                    <View className="flex-row justify-between items-center">
+                        <Text className="text-base font-normal text-secondary line-clamp-1 flex-1 mr-2">
+                            10% Off
+                        </Text>
+                        <View className="flex-row items-center space-x-1">
+                            <Ionicons name="star" size={16} color="#fbbf24" />
+                            <Text className="font-bold" style={{ color: colors.text }}>{displayRating}</Text>
+                        </View>
+                    </View>
+                    <Text className="text-xl font-bold line-clamp-1 flex-1 mr-2" style={{ color: colors.text }}>
+                        {displayName}
+                    </Text>
                     <View className="flex-row items-center space-x-1">
-                        <Ionicons name="star" size={14} color="#fbbf24" />
-                        <Text className="font-bold text-xs" style={{ color: colors.text }}>{item.rating}</Text>
+                        <Ionicons name="location-sharp" size={16} color="#9ca3af" />
+                        <Text className="text-sm line-clamp-1" style={{ color: colors.textSecondary }}>
+                            {displayLocation}
+                        </Text>
+                    </View>
+                    <View className="flex-row items-end space-x-1 mt-1">
+                        <Text className="text-secondary font-bold text-lg">{displayPrice}</Text>
+                        <Text className="text-sm mb-0.5" style={{ color: colors.textSecondary }}>/Day</Text>
                     </View>
                 </View>
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>{item.location}</Text>
-                <View className="flex-row items-end space-x-1">
-                    <Text className="text-primary font-bold text-base">{item.price}</Text>
-                    <Text className="text-xs mb-0.5" style={{ color: colors.textSecondary }}>/night</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderNearbyItem = ({ item }: { item: any }) => {
+        const displayName = item?.name || item?.title || 'Unnamed Room';
+        const displayLocation = item?.location || item?.address || 'No location';
+        const displayPrice = item?.price || item?.pricePerDay || '$0';
+        const displayRating = item?.rating || 4.5;
+        const rawImage = item?.previewImage || item?.image || item?.thumbnail || item?.imageUrl || item?.photo;
+        const displayImage = getImageUrl(rawImage);
+
+        return (
+            <TouchableOpacity
+                onPress={() => router.push(`/hotel/${item._id || item.id}`)}
+                className="flex-row rounded-xl shadow-sm p-3 mb-4 items-center"
+                style={{ backgroundColor: colors.card }}
+            >
+                <Image
+                    source={{ uri: displayImage }}
+                    style={{ 
+                        width: 100, 
+                        height: 100,
+                        borderRadius: 10,
+                        backgroundColor: colors.card,
+                    }}
+                    resizeMode="cover"
+                />
+                <View className="flex-1 ml-4 space-y-2">
+                    <View className="flex-row justify-between">
+                        <Text className="text-lg font-bold flex-1 mr-2" style={{ color: colors.text }}>{displayName}</Text>
+                        <View className="flex-row items-center space-x-1">
+                            <Ionicons name="star" size={14} color="#fbbf24" />
+                            <Text className="font-bold text-xs" style={{ color: colors.text }}>{displayRating}</Text>
+                        </View>
+                    </View>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>{displayLocation}</Text>
+                    <View className="flex-row items-end space-x-1">
+                        <Text className="text-primary font-bold text-base">{displayPrice}</Text>
+                        <Text className="text-xs mb-0.5" style={{ color: colors.textSecondary }}>/day</Text>
+                    </View>
                 </View>
-            </View>
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg }}>
@@ -253,14 +260,24 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <FlatList
-                        data={HOTELS}
-                        renderItem={renderHotelCard}
-                        keyExtractor={(item) => item.id}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
-                    />
+                    {loading ? (
+                        <View className="py-12 flex justify-center items-center">
+                            <ActivityIndicator size="large" color="#F1510C" />
+                        </View>
+                    ) : rooms.length > 0 ? (
+                        <FlatList
+                            data={rooms}
+                            renderItem={renderHotelCard}
+                            keyExtractor={(item, index) => (item._id || item.id || index.toString())}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
+                        />
+                    ) : (
+                        <View className="py-12 flex justify-center items-center">
+                            <Text style={{ color: colors.textSecondary }}>No rooms available</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Nearby Hotels */}
@@ -274,9 +291,15 @@ export default function HomeScreen() {
                             <Text className="text-secondary font-semibold">See all</Text>
                         </TouchableOpacity>
                     </View>
-                    {NEARBY_HOTELS.map((item) => (
-                        <View key={item.id}>{renderNearbyItem({ item })}</View>
-                    ))}
+                    {Array.isArray(rooms) && rooms.length > 0 ? (
+                        rooms.map((item, index) => (
+                            <View key={item?._id || item?.id || index.toString()}>
+                                {renderNearbyItem({ item })}
+                            </View>
+                        ))
+                    ) : (
+                        <Text style={{ color: colors.textSecondary }}>No nearby hotels</Text>
+                    )}
                 </View>
 
             </ScrollView>

@@ -79,8 +79,8 @@ export default function ConfirmBookingScreen() {
                             <Text className="text-gray-900 font-bold">{adults} Adults, {children} Children</Text>
                         </View>
                         <View>
-                            <Text className="text-gray-500 text-sm mb-1">Nights</Text>
-                            <Text className="text-gray-900 font-bold">{days} Nights</Text>
+                            <Text className="text-gray-500 text-sm mb-1">Days</Text>
+                            <Text className="text-gray-900 font-bold">{days} Days</Text>
                         </View>
                     </View>
                 </View>
@@ -89,7 +89,7 @@ export default function ConfirmBookingScreen() {
                 <Text className="text-xl font-bold text-gray-900 mb-4">Payment Detail</Text>
                 <View className="bg-white border border-gray-100 rounded-2xl p-6 mb-8 shadow-sm">
                     <View className="flex-row justify-between mb-3">
-                        <Text className="text-gray-600">Total Price ({days} nights)</Text>
+                        <Text className="text-gray-600">Total Price ({days} days)</Text>
                         <Text className="text-gray-900 font-semibold">${total}</Text>
                     </View>
                     <View className="flex-row justify-between mb-3">

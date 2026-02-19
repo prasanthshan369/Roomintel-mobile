@@ -1,7 +1,7 @@
-const LIVE = true;
+const LIVE = false;
 
-const SITEURL = 'https://bookadzonebackend.onrender.com/';
-const LIVEURL = LIVE ? SITEURL : 'http://localhost:8000/';
+const SITEURL = 'z';
+const LIVEURL = LIVE ? SITEURL : 'http://172.21.3.170:8000/';
 const ROOTURL = `${LIVEURL}api/v1/`;
 const FILEURL = LIVEURL;
 const SETTINGS_ID = '68ad8844bfdf0cec7f623bc2';
@@ -125,7 +125,7 @@ const API = {
   permanentDeleteGallery: `${ROOTURL}gallery/permanentDelete/`,
 
   // BillingAddress endpoints
-addBillingAddress: `${ROOTURL}billingaddress/`,
+  addBillingAddress: `${ROOTURL}billingaddress/`,
   listBillingAddress: `${ROOTURL}billingaddress/`,
   getBillingAddressByCustomer: `${ROOTURL}billingaddress/getByCustomer/`,
   updateBillingAddress: `${ROOTURL}billingaddress/update/`,
@@ -133,7 +133,7 @@ addBillingAddress: `${ROOTURL}billingaddress/`,
   trashBillingAddressList: `${ROOTURL}billingaddress/trash`,
   restoreBillingAddress: `${ROOTURL}billingaddress/restore/`,
   permanentDeleteBillingAddress: `${ROOTURL}billingaddress/permanentDelete/`,
-setDefaultBillingAddress: `${ROOTURL}billingaddress/setDefault/`,
+  setDefaultBillingAddress: `${ROOTURL}billingaddress/setDefault/`,
 
 
   // slider endpoints

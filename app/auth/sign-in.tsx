@@ -1,15 +1,39 @@
+import { useAppDispatch, useAppSelector } from "@/components/redux/hooks";
+import { login } from "@/components/redux/slices/authSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Colors } from "../../constants/Colors";
 
-export default function SignInScreen() {
+
+const LoginPage = () => {
     const router = useRouter();
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const dispatch = useAppDispatch();
+    const { errorMessage, loading } = useAppSelector((state) => state.auth);
+    
+    const [email, setEmail] = useState("abhijithsingh@gmail.com");
+    const [password, setPassword] = useState("admin@123");
     const [showPassword, setShowPassword] = useState(false);
+
+    const onSubmit = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Email and password are required');
+            return;
+        }
+        try {
+            const result = await dispatch(login({ email: email.trim(), password: password.trim() }));
+            // Check if the action was fulfilled (successful)
+            if (result.type === 'auth/login/fulfilled') {
+                router.replace("/(tabs)");
+            } else if (result.type === 'auth/login/rejected') {
+                console.error('Login failed:', result.payload);
+            }
+        } catch (error) {
+            console.log('Login error', error);
+        }
+    }
 
     return (
         <KeyboardAvoidingView
@@ -66,15 +90,28 @@ export default function SignInScreen() {
                             </View>
                         </View>
 
+                        {errorMessage && (
+                            <View className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                                <View className="flex-row items-start gap-3">
+                                    <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                                    <Text className="text-red-700 font-semibold flex-1 text-base">{errorMessage}</Text>
+                                </View>
+                            </View>
+                        )}
+
                         <TouchableOpacity className="items-end">
                             <Text className="text-primary font-bold text-base">Forgot Password?</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={() => router.replace("/(tabs)")}
+                            onPress={onSubmit}
+                            disabled={loading}
                             className="bg-secondary py-5 rounded-2xl items-center shadow-xl shadow-orange-900/30 active:opacity-90 mt-2"
+                            style={{ opacity: loading ? 0.6 : 1 }}
                         >
-                            <Text className="text-white font-bold text-xl">Sign In</Text>
+                            <Text className="text-white font-bold text-xl">
+                                {loading ? 'Signing In...' : 'Sign In'}
+                            </Text>
                         </TouchableOpacity>
 
                         <View className="flex-row items-center my-8">
@@ -107,3 +144,4 @@ export default function SignInScreen() {
         </KeyboardAvoidingView>
     );
 }
+export default LoginPage

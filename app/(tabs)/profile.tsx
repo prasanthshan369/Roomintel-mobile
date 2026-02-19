@@ -3,12 +3,20 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAppDispatch } from "../../components/redux/hooks";
+import { logout } from "../../components/redux/slices/authSlice";
 import { useTheme } from "../../constants/ThemeContext";
 
 export default function ProfileScreen() {
     const router = useRouter();
+    const dispatch = useAppDispatch();
     const { isDarkMode, toggleDarkMode, colors } = useTheme();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+    const handleLogout = async () => {
+        dispatch(logout());
+        router.replace('/auth/sign-in');
+    };
 
     const MenuItem = ({ icon, title, showChevron = true, onPress, color, rightElement, iconBg }: any) => (
         <TouchableOpacity
@@ -221,7 +229,7 @@ export default function ProfileScreen() {
                 {/* Log Out */}
                 <View style={{ marginHorizontal: 24, marginBottom: 16 }}>
                     <TouchableOpacity
-                        onPress={() => router.replace('/auth/sign-in')}
+                        onPress={handleLogout}
                         activeOpacity={0.7}
                         style={{
                             flexDirection: "row",

@@ -3,6 +3,8 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Image, View } from "react-native";
+import { Provider } from "react-redux";
+import { store } from "../components/redux/store";
 import { ThemeProvider } from "../constants/ThemeContext";
 import "../global.css";
 
@@ -33,8 +35,10 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </ThemeProvider>
+    <Provider store={store}>
+      <ThemeProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </ThemeProvider>
+    </Provider>
   );
 }

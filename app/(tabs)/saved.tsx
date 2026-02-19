@@ -70,7 +70,7 @@ export default function SavedScreen() {
                     </View>
                     <Text className="text-primary font-bold text-lg">
                         {item.price}
-                        <Text className="text-xs font-normal" style={{ color: colors.textSecondary }}>/night</Text>
+                        <Text className="text-xs font-normal" style={{ color: colors.textSecondary }}>/</Text>
                     </Text>
                 </View>
             </View>
