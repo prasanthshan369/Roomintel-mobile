@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
-import { Colors } from "../../constants/Colors";
-import { useTheme } from "../../constants/ThemeContext";
+import { Colors } from "../../../constants/Colors";
+import { useTheme } from "../../../constants/ThemeContext";
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
     const { colors } = useTheme();

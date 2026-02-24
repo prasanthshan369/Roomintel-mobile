@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "../../constants/ThemeContext";
+import { useTheme } from "../../../constants/ThemeContext";
 
 const SAVED_HOTELS = [
     {

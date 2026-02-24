@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     Dimensions,
     FlatList,
-    Image,
     NativeScrollEvent,
     NativeSyntheticEvent,
     ScrollView,
@@ -15,38 +14,18 @@ import {
     View,
 } from "react-native";
 import { useTheme } from "../../constants/ThemeContext";
+import { siteService } from "../../src/api/siteServices";
+import { getImageUrl } from "../../src/utils/imageHelper";
+
+// Components
+import AboutTab from "../../src/components/hotel/AboutTab";
+import GalleryTab from "../../src/components/hotel/GalleryTab";
+import HotelBanner from "../../src/components/hotel/HotelBanner";
+import ReviewTab from "../../src/components/hotel/ReviewTab";
 
 const { width } = Dimensions.get("window");
-
 const TABS = ["About", "Gallery", "Review"];
-
-const FACILITIES = [
-    { name: "2 Beds", icon: "bed" as const },
-    { name: "1 Bath", icon: "water" as const },
-    { name: "2000 sqrt", icon: "resize" as const },
-    { name: "AC", icon: "snow" as const },
-    { name: "Wi fi", icon: "wifi" as const },
-    { name: "Breakfast", icon: "cafe" as const },
-];
-
-// Carousel images for the hero section
-const CAROUSEL_IMAGES = [
-    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1455587734955-081b22074882?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1564501049412-61c2a3083791?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-];
-
-const GALLERY_IMAGES = [
-    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1455587734955-081b22074882?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1564501049412-61c2a3083791?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-];
+const PLACEHOLDER = "https://via.placeholder.com/800x500?text=No+Image";
 
 const REVIEWS = [
     {
@@ -55,7 +34,7 @@ const REVIEWS = [
         avatar: "https://randomuser.me/api/portraits/women/44.jpg",
         rating: 5,
         date: "2 days ago",
-        comment: "Absolutely stunning resort! The ocean views from the room were breathtaking. Staff was incredibly attentive and the food was amazing.",
+        comment: "Absolutely stunning! The views from the room were breathtaking. Staff was incredibly attentive.",
     },
     {
         id: "2",
@@ -63,311 +42,223 @@ const REVIEWS = [
         avatar: "https://randomuser.me/api/portraits/men/32.jpg",
         rating: 4,
         date: "1 week ago",
-        comment: "Great location and beautiful property. The infinity pool was the highlight. Would definitely recommend for a romantic getaway.",
-    },
-    {
-        id: "3",
-        name: "Emily Davis",
-        avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-        rating: 5,
-        date: "2 weeks ago",
-        comment: "Perfect stay from start to finish. The spa treatments were world-class and the private beach was pristine. Can't wait to return!",
+        comment: "Great location and beautiful property. Would definitely recommend for a romantic getaway.",
     },
 ];
+
+interface Room {
+    _id: string;
+    name: string;
+    slug?: string;
+    location?: string;
+    price: number;
+    rating?: number;
+    description?: string;
+    category?: any;
+    amenities?: string[];
+    maxGuests?: number;
+    status?: string;
+    images?: string[];
+    previewImage?: string;
+    image?: string;
+    photo?: string;
+    thumbnail?: string;
+}
 
 export default function HotelDetailsScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { isDarkMode, colors } = useTheme();
     const [activeTab, setActiveTab] = useState("About");
     const [activeSlide, setActiveSlide] = useState(0);
-    const flatListRef = useRef<FlatList>(null);
-    const { isDarkMode, colors } = useTheme();
+    const [room, setRoom] = useState<Room | null>(null);
+    const [loading, setLoading] = useState(true);
+    const flatListRef = useRef<FlatList<any>>(null);
 
-    const hotel = {
-        name: "Hotel Galaxy",
-        location: "New York, USA",
-        price: "$160",
-        rating: 4.8,
-        description:
-            "Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. to demonstrate the visual form of a document or a typeface without relying on meaningful content.",
+    useEffect(() => {
+        if (id) fetchRoomDetails();
+    }, [id]);
+
+    const fetchRoomDetails = async () => {
+        try {
+            setLoading(true);
+            const response = await siteService.getRoomBySlug(id as string);
+            const data = response?.data || response?.room || response;
+            setRoom(data);
+        } catch (error) {
+            console.log("Error fetching room details:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-        if (slideIndex !== activeSlide) {
-            setActiveSlide(slideIndex);
+    const buildImageList = useCallback((roomData: Room): string[] => {
+        const list: string[] = [];
+        const hero = roomData.previewImage || roomData.image || roomData.photo || roomData.thumbnail;
+        if (hero) list.push(getImageUrl(hero));
+
+        if (Array.isArray(roomData.images)) {
+            roomData.images.forEach((img) => {
+                const url = getImageUrl(img);
+                if (url !== PLACEHOLDER && !list.includes(url)) list.push(url);
+            });
         }
+        if (list.length === 0) list.push(PLACEHOLDER);
+        return list;
+    }, []);
+
+    const carouselImages = room ? buildImageList(room) : [PLACEHOLDER];
+
+    const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const slideSize = event.nativeEvent.layoutMeasurement.width;
+        const index = event.nativeEvent.contentOffset.x / slideSize;
+        const roundIndex = Math.round(index);
+        setActiveSlide(roundIndex);
     };
 
     const scrollToImage = (index: number) => {
         flatListRef.current?.scrollToIndex({ index, animated: true });
-        setActiveSlide(index);
     };
 
-    const renderStars = (rating: number) => {
-        const stars = [];
-        for (let i = 1; i <= 5; i++) {
-            stars.push(
-                <Ionicons
-                    key={i}
-                    name={i <= rating ? "star" : i - 0.5 <= rating ? "star-half" : "star-outline"}
-                    size={14}
-                    color="#fbbf24"
-                />
-            );
-        }
-        return stars;
+    const renderStars = (rating: number = 4.5) => {
+        return [...Array(5)].map((_, i) => (
+            <Ionicons
+                key={i}
+                name={i + 1 <= rating ? "star" : i + 0.5 <= rating ? "star-half" : "star-outline"}
+                size={14}
+                color="#fbbf24"
+            />
+        ));
     };
 
-    const renderCarouselItem = ({ item }: { item: string }) => (
-        <Image
-            source={{ uri: item }}
-            style={{ width: width, height: 350 }}
-            resizeMode="cover"
-        />
-    );
+    if (loading) {
+        return (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
+                <StatusBar style={isDarkMode ? "light" : "dark"} />
+                <ActivityIndicator size="large" color="#F1510C" />
+                <Text style={{ color: colors.textSecondary, marginTop: 12 }}>Loading details...</Text>
+            </View>
+        );
+    }
+
+    const amenities = room?.amenities && room.amenities.length > 0
+        ? room.amenities.map((a: any, i: number) => ({
+            name: typeof a === 'string' ? a : (a?.name || a?.title || a?.label || String(i + 1)),
+            icon: "checkmark-circle" as const,
+            key: i,
+        }))
+        : [
+            { name: "Wi-Fi", icon: "wifi" as const, key: 0 },
+            { name: "AC", icon: "snow" as const, key: 1 },
+            { name: "Breakfast", icon: "cafe" as const, key: 2 },
+        ];
 
     return (
         <View className="flex-1" style={{ backgroundColor: colors.bg }}>
             <StatusBar style={isDarkMode ? "light" : "dark"} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-                {/* Image Carousel with Thumbnail Strip */}
-                <View className="relative">
-                    <FlatList
-                        ref={flatListRef}
-                        data={CAROUSEL_IMAGES}
-                        renderItem={renderCarouselItem}
-                        keyExtractor={(_, index) => index.toString()}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        onScroll={onScroll}
-                        scrollEventThrottle={16}
-                        bounces={false}
-                        style={{ height: 350 }}
-                    />
 
-                    {/* Gradient overlay for top icons */}
-                    <LinearGradient
-                        colors={["rgba(0,0,0,0.45)", "transparent"]}
-                        className="absolute top-0 left-0 right-0 h-28"
-                        pointerEvents="none"
-                    />
+                {/* Banner Carousel Component */}
+                <HotelBanner
+                    carouselImages={carouselImages}
+                    flatListRef={flatListRef}
+                    activeSlide={activeSlide}
+                    onScroll={onScroll}
+                    scrollToImage={scrollToImage}
+                    isDarkMode={isDarkMode}
+                />
 
-                    {/* Back Button */}
-                    <TouchableOpacity
-                        onPress={() => router.back()}
-                        className="absolute top-12 left-6 p-2.5 rounded-full"
-                        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-                    >
-                        <Ionicons name="chevron-back" size={22} color="white" />
-                    </TouchableOpacity>
-
-                    {/* Top Right Icons */}
-                    <View className="absolute top-12 right-6 flex-row space-x-3">
-                        <TouchableOpacity
-                            className="p-2.5 rounded-full"
-                            style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-                        >
-                            <Ionicons name="share-outline" size={22} color="white" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            className="p-2.5 rounded-full ml-3"
-                            style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-                        >
-                            <Ionicons name="heart-outline" size={22} color="white" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Thumbnail Strip at Bottom of Image */}
-                    <View
-                        className="absolute bottom-3 mx-10 rounded-lg left-0 right-0 flex-row justify-center items-center"
-                        style={{
-                            gap: 6,
-                            backgroundColor: isDarkMode ? colors.card : "white",
-                            paddingVertical: 4,
-                            paddingHorizontal: 6,
-                        }}
-                    >
-                        {CAROUSEL_IMAGES.map((img, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                onPress={() => scrollToImage(index)}
-                                style={{
-                                    borderWidth: activeSlide === index ? 2 : 0,
-                                    borderColor: activeSlide === index ? "#F1510C" : "transparent",
-                                    borderRadius: 8,
-                                    overflow: "hidden",
-                                }}
-                            >
-                                <Image
-                                    source={{ uri: img }}
-                                    style={{
-                                        width: activeSlide === index ? 50 : 44,
-                                        height: activeSlide === index ? 50 : 44,
-                                        borderRadius: 6,
-                                    }}
-                                    resizeMode="cover"
-                                />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Content Container */}
-                <View className="px-6 pt-5 pb-4" style={{ backgroundColor: colors.card }}>
-                    {/* 20% Off + Rating Row */}
-                    <View className="flex-row justify-between items-center mb-3">
-                        <Text className="text-secondary font-semibold text-base">20% Off</Text>
-                        <View className="flex-row items-center space-x-1">
-                            <Ionicons name="star" size={16} color="#fbbf24" />
-                            <Text className="font-bold text-sm" style={{ color: colors.text }}>{hotel.rating}</Text>
-                            <Text className="text-sm" style={{ color: colors.textSecondary }}>(107 reviews)</Text>
+                <View className="px-6 mt-6">
+                    <View className="flex-row justify-between items-start mb-2">
+                        <View className="flex-1 mr-4">
+                            <Text className="text-2xl font-bold mb-2" style={{ color: colors.text }}>
+                                {room?.name || "Luxury Room"}
+                            </Text>
+                            <View className="flex-row items-center">
+                                <Ionicons name="location-sharp" size={16} color="#F1510C" />
+                                <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>
+                                    {room?.location || "Manhattan, New York"}
+                                </Text>
+                            </View>
+                        </View>
+                        <View className="items-end">
+                            <View className="flex-row mb-1">
+                                {renderStars(room?.rating || 4.5)}
+                            </View>
+                            <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+                                (124 reviews)
+                            </Text>
                         </View>
                     </View>
 
-                    {/* Hotel Name & Location */}
-                    <View className="flex-row justify-between items-start mb-1">
-                        <View className="flex-1 pr-4">
-                            <Text className="text-2xl font-bold" style={{ color: colors.text }}>{hotel.name}</Text>
-                        </View>
-                        <TouchableOpacity
-                            className="bg-secondary w-10 h-10 rounded-full items-center justify-center"
-                        >
-                            <Ionicons name="send" size={18} color="white" />
-                        </TouchableOpacity>
-                    </View>
-                    <View className="flex-row items-center space-x-1 mb-5">
-                        <Ionicons name="location-sharp" size={16} color="#9ca3af" />
-                        <Text className="text-sm" style={{ color: colors.textSecondary }}>{hotel.location}</Text>
-                    </View>
-
-                    {/* Tab Navigation */}
-                    <View className="flex-row mb-6" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    {/* Tabs */}
+                    <View className="flex-row border-b mb-6 mt-4" style={{ borderColor: colors.border }}>
                         {TABS.map((tab) => (
                             <TouchableOpacity
                                 key={tab}
                                 onPress={() => setActiveTab(tab)}
-                                className="mr-8 pb-3"
-                                style={{
-                                    borderBottomWidth: activeTab === tab ? 2 : 0,
-                                    borderBottomColor: activeTab === tab ? colors.text : "transparent",
-                                }}
+                                className="mr-8 pb-3 relative"
                             >
                                 <Text
-                                    className="text-base font-semibold"
-                                    style={{
-                                        color: activeTab === tab ? colors.text : colors.textSecondary,
-                                    }}
+                                    className={`text-sm font-bold ${activeTab === tab ? "" : ""}`}
+                                    style={{ color: activeTab === tab ? "#F1510C" : colors.textSecondary }}
                                 >
                                     {tab}
                                 </Text>
+                                {activeTab === tab && (
+                                    <View
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                                        style={{ backgroundColor: "#F1510C" }}
+                                    />
+                                )}
                             </TouchableOpacity>
                         ))}
                     </View>
 
                     {/* Tab Content */}
                     {activeTab === "About" && (
-                        <View>
-                            {/* Facilities Grid */}
-                            <View className="flex-row flex-wrap mb-6">
-                                {FACILITIES.map((facility, index) => (
-                                    <View
-                                        key={index}
-                                        className="flex-row items-center mb-4"
-                                        style={{ width: "33.33%" }}
-                                    >
-                                        <Ionicons name={facility.icon} size={20} color="#F1510C" />
-                                        <Text className="text-sm font-medium ml-2" style={{ color: colors.text }}>
-                                            {facility.name}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {/* Description */}
-                            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Description</Text>
-                            <Text className="leading-6 text-sm" style={{ color: colors.textSecondary }}>
-                                {hotel.description}
-                            </Text>
-                        </View>
+                        <AboutTab
+                            amenities={amenities as any}
+                            description={room?.description || ""}
+                            maxGuests={room?.maxGuests}
+                            colors={colors}
+                        />
                     )}
 
                     {activeTab === "Gallery" && (
-                        <View>
-                            <Text className="text-lg font-bold mb-4" style={{ color: colors.text }}>Photos</Text>
-                            <View className="flex-row flex-wrap justify-between">
-                                {GALLERY_IMAGES.map((img, index) => (
-                                    <View key={index} className="mb-3" style={{ width: (width - 60) / 2 }}>
-                                        <Image
-                                            source={{ uri: img }}
-                                            className="rounded-2xl"
-                                            style={{ width: "100%", height: 150 }}
-                                            resizeMode="cover"
-                                        />
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
+                        <GalleryTab
+                            carouselImages={carouselImages}
+                            placeholder={PLACEHOLDER}
+                            colors={colors}
+                        />
                     )}
 
                     {activeTab === "Review" && (
-                        <View>
-                            <View className="flex-row justify-between items-center mb-5">
-                                <Text className="text-lg font-bold" style={{ color: colors.text }}>Reviews</Text>
-                                <View className="flex-row items-center space-x-1">
-                                    <Ionicons name="star" size={18} color="#fbbf24" />
-                                    <Text className="font-bold text-lg" style={{ color: colors.text }}>{hotel.rating}</Text>
-                                    <Text className="text-sm" style={{ color: colors.textSecondary }}>(2.5k)</Text>
-                                </View>
-                            </View>
-
-                            {REVIEWS.map((review) => (
-                                <View
-                                    key={review.id}
-                                    className="mb-5 pb-5"
-                                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                                >
-                                    <View className="flex-row items-center mb-3">
-                                        <Image
-                                            source={{ uri: review.avatar }}
-                                            className="w-10 h-10 rounded-full"
-                                        />
-                                        <View className="flex-1 ml-3">
-                                            <Text className="font-bold text-sm" style={{ color: colors.text }}>{review.name}</Text>
-                                            <Text className="text-xs" style={{ color: colors.textSecondary }}>{review.date}</Text>
-                                        </View>
-                                        <View className="flex-row">
-                                            {renderStars(review.rating)}
-                                        </View>
-                                    </View>
-                                    <Text className="text-sm leading-5" style={{ color: colors.textSecondary }}>{review.comment}</Text>
-                                </View>
-                            ))}
-                        </View>
+                        <ReviewTab
+                            reviews={REVIEWS}
+                            colors={colors}
+                        />
                     )}
                 </View>
             </ScrollView>
 
-            {/* Footer: Total Price + Book Now */}
+            {/* Bottom Bar */}
             <View
-                className="absolute bottom-0 left-0 right-0 px-6 py-4 shadow-md flex-row justify-between items-center"
-                style={{
-                    backgroundColor: colors.card,
-                    borderTopWidth: 1,
-                    borderTopColor: colors.border,
-                }}
+                className="absolute bottom-0 left-0 right-0 px-6 py-4 flex-row justify-between items-center border-t shadow-lg"
+                style={{ backgroundColor: colors.card, borderColor: colors.border }}
             >
                 <View>
-                    <Text className="text-xs" style={{ color: colors.textSecondary }}>Total price</Text>
-                    <View className="flex-row items-end">
-                        <Text className="text-secondary font-bold text-xl">{hotel.price}</Text>
-                        <Text className="text-xs mb-0.5 ml-1" style={{ color: colors.textSecondary }}>/Day</Text>
+                    <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>Price</Text>
+                    <View className="flex-row items-center">
+                        <Text className="text-2xl font-bold" style={{ color: "#F1510C" }}>
+                            ${room?.price || 199}
+                        </Text>
+                        <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>/night</Text>
                     </View>
                 </View>
                 <TouchableOpacity
-                    onPress={() => router.push({ pathname: "/booking/dates", params: { id } })}
-                    className="bg-secondary px-10 py-4 rounded-xl items-center shadow-lg shadow-orange-500/30"
+                    className="bg-primary px-10 py-4 rounded-2xl shadow-md"
+                    style={{ backgroundColor: "#F1510C" }}
                 >
                     <Text className="text-white font-bold text-base">Book Now</Text>
                 </TouchableOpacity>

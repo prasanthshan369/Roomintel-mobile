@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Dimensions, FlatList, Image, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "../../constants/Colors";
-import { useTheme } from "../../constants/ThemeContext";
+import { Colors } from "../../../constants/Colors";
+import { useTheme } from "../../../constants/ThemeContext";
 
 const { width } = Dimensions.get("window");
 

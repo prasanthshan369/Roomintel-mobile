@@ -2,132 +2,268 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Colors } from "../../constants/Colors";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../../constants/ThemeContext";
+import { useAuthStore } from "../../src/store/useAuthStore";
 
 export default function SignUpScreen() {
     const router = useRouter();
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const { isDarkMode, colors } = useTheme();
+    const { register, loading: authLoading } = useAuthStore();
+
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+    });
+
+    const [errors, setErrors] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+    });
+
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [agreed, setAgreed] = useState(false);
+
+    const handleInputChange = (field: string, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setErrors(prev => ({ ...prev, [field]: '' }));
+    };
+
+    const validateForm = () => {
+        const newErrors = { name: '', email: '', password: '', confirmPassword: '' };
+        let valid = true;
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!formData.name.trim()) {
+            newErrors.name = 'Full name is required';
+            valid = false;
+        }
+
+        if (!formData.email.trim()) {
+            newErrors.email = 'Email is required';
+            valid = false;
+        } else if (!emailRegex.test(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+            valid = false;
+        }
+
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+            valid = false;
+        } else if (formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters long';
+            valid = false;
+        }
+
+        if (!formData.confirmPassword) {
+            newErrors.confirmPassword = 'Please confirm your password';
+            valid = false;
+        } else if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+            valid = false;
+        }
+
+        if (!agreed) {
+            Alert.alert('Terms & Conditions', 'Please agree to the Terms & Conditions to continue.');
+            valid = false;
+        }
+
+        setErrors(newErrors);
+        return valid;
+    };
+
+    const handleSignUp = async () => {
+        if (!validateForm()) return;
+
+        try {
+            await register({
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+            });
+
+            Alert.alert('Success', 'Account created successfully!', [
+                {
+                    text: 'OK',
+                    onPress: () => router.replace("/(tabs)"),
+                },
+            ]);
+        } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error.message || 'Registration failed. Please try again.';
+            Alert.alert('Sign Up Failed', errorMessage);
+        }
+    };
 
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="flex-1 bg-white"
+            className="flex-1"
+            style={{ backgroundColor: colors.bg }}
         >
-            <StatusBar style="dark" />
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                <View className="flex-1 px-8 pt-16 pb-8 justify-center">
+            <StatusBar style={isDarkMode ? "light" : "dark"} />
+            <ScrollView
+                contentContainerStyle={{ paddingBottom: 30 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                <View className="px-6 pt-12">
+                    {/* Back Button */}
                     <TouchableOpacity
                         onPress={() => router.back()}
-                        className="w-12 h-12 bg-gray-50 rounded-full items-center justify-center mb-6 absolute top-12 left-6 z-10"
+                        className="w-10 h-10 rounded-full items-center justify-center mb-4"
+                        style={{ backgroundColor: colors.card }}
                     >
-                        <Ionicons name="arrow-back" size={28} color={Colors.light.text} />
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
                     </TouchableOpacity>
 
-                    <View className="mb-12 items-center mt-12">
-                        <Text className="text-4xl font-bold text-primary mb-4 text-center">Create Account</Text>
-                        <Text className="text-gray-500 text-lg text-center px-6">Start exploring your dream stays today!</Text>
+                    {/* Header */}
+                    <View className="mb-6 items-center">
+                        <Text className="text-3xl font-bold mb-1 text-center" style={{ color: colors.text }}>Create Account</Text>
+                        <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>Start exploring your dream stays today!</Text>
                     </View>
 
-                    <View className="space-y-6">
-                        <View>
-                            <Text className="text-gray-700 font-bold text-lg mb-3 ml-1">Full Name</Text>
-                            <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 focus:border-primary focus:bg-white transition-colors">
-                                <Ionicons name="person-outline" size={24} color={Colors.light.textSecondary} />
-                                <TextInput
-                                    placeholder="John Doe"
-                                    placeholderTextColor={Colors.light.textSecondary}
-                                    className="flex-1 ml-4 text-gray-900 text-lg font-medium"
-                                    value={name}
-                                    onChangeText={setName}
-                                />
-                            </View>
+                    {/* Full Name */}
+                    <View className="mb-3.5">
+                        <Text className="font-semibold text-sm mb-1.5 ml-0.5" style={{ color: colors.text }}>Full Name</Text>
+                        <View className="flex-row items-center border rounded-xl px-3.5 py-3" style={{ backgroundColor: colors.inputBg, borderColor: colors.border }}>
+                            <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+                            <TextInput
+                                placeholder="John Doe"
+                                placeholderTextColor={colors.textSecondary}
+                                className="flex-1 ml-2.5 text-[15px]"
+                                style={{ color: colors.text }}
+                                value={formData.name}
+                                onChangeText={(text) => handleInputChange('name', text)}
+                            />
                         </View>
+                        {errors.name ? <Text style={{ color: 'red' }} className="text-xs mt-1 ml-1">{errors.name}</Text> : null}
+                    </View>
 
-                        <View>
-                            <Text className="text-gray-700 font-bold text-lg mb-3 ml-1">Email Address</Text>
-                            <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 focus:border-primary focus:bg-white transition-colors">
-                                <Ionicons name="mail-outline" size={24} color={Colors.light.textSecondary} />
-                                <TextInput
-                                    placeholder="name@example.com"
-                                    placeholderTextColor={Colors.light.textSecondary}
-                                    className="flex-1 ml-4 text-gray-900 text-lg font-medium"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    value={email}
-                                    onChangeText={setEmail}
-                                />
-                            </View>
+                    {/* Email */}
+                    <View className="mb-3.5">
+                        <Text className="font-semibold text-sm mb-1.5 ml-0.5" style={{ color: colors.text }}>Email Address</Text>
+                        <View className="flex-row items-center border rounded-xl px-3.5 py-3" style={{ backgroundColor: colors.inputBg, borderColor: colors.border }}>
+                            <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+                            <TextInput
+                                placeholder="name@example.com"
+                                placeholderTextColor={colors.textSecondary}
+                                className="flex-1 ml-2.5 text-[15px]"
+                                style={{ color: colors.text }}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                value={formData.email}
+                                onChangeText={(text) => handleInputChange('email', text)}
+                            />
                         </View>
+                        {errors.email ? <Text style={{ color: 'red' }} className="text-xs mt-1 ml-1">{errors.email}</Text> : null}
+                    </View>
 
-                        <View>
-                            <Text className="text-gray-700 font-bold text-lg mb-3 ml-1">Password</Text>
-                            <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 focus:border-primary focus:bg-white transition-colors">
-                                <Ionicons name="lock-closed-outline" size={24} color={Colors.light.textSecondary} />
-                                <TextInput
-                                    placeholder="Create a password"
-                                    placeholderTextColor={Colors.light.textSecondary}
-                                    className="flex-1 ml-4 text-gray-900 text-lg font-medium"
-                                    secureTextEntry={!showPassword}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} color={Colors.light.textSecondary} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        <View className="flex-row items-start mb-4">
-                            <TouchableOpacity
-                                onPress={() => setAgreed(!agreed)}
-                                className={`mt-1 w-6 h-6 border-2 rounded items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-gray-300'}`}
-                            >
-                                {agreed && <Ionicons name="checkmark" size={16} color="white" />}
+                    {/* Password */}
+                    <View className="mb-3.5">
+                        <Text className="font-semibold text-sm mb-1.5 ml-0.5" style={{ color: colors.text }}>Password</Text>
+                        <View className="flex-row items-center border rounded-xl px-3.5 py-3" style={{ backgroundColor: colors.inputBg, borderColor: colors.border }}>
+                            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+                            <TextInput
+                                placeholder="Create a password"
+                                placeholderTextColor={colors.textSecondary}
+                                className="flex-1 ml-2.5 text-[15px]"
+                                style={{ color: colors.text }}
+                                secureTextEntry={!showPassword}
+                                value={formData.password}
+                                onChangeText={(text) => handleInputChange('password', text)}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textSecondary} />
                             </TouchableOpacity>
-                            <Text className="text-gray-500 text-base flex-1 leading-6 ml-3">
-                                <Text className="text-primary font-bold"> Agree With  </Text>
-                                <Text className="text-secondary border-b-2 border-secondary border-dotted font-bold">Terms & Conditions</Text>
-                            </Text>
                         </View>
+                        {errors.password ? <Text style={{ color: 'red' }} className="text-xs mt-1 ml-1">{errors.password}</Text> : null}
+                    </View>
 
+                    {/* Confirm Password */}
+                    <View className="mb-3.5">
+                        <Text className="font-semibold text-sm mb-1.5 ml-0.5" style={{ color: colors.text }}>Confirm Password</Text>
+                        <View className="flex-row items-center border rounded-xl px-3.5 py-3" style={{ backgroundColor: colors.inputBg, borderColor: colors.border }}>
+                            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+                            <TextInput
+                                placeholder="Confirm your password"
+                                placeholderTextColor={colors.textSecondary}
+                                className="flex-1 ml-2.5 text-[15px]"
+                                style={{ color: colors.text }}
+                                secureTextEntry={!showConfirmPassword}
+                                value={formData.confirmPassword}
+                                onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        {errors.confirmPassword ? <Text style={{ color: 'red' }} className="text-xs mt-1 ml-1">{errors.confirmPassword}</Text> : null}
+                    </View>
+
+                    {/* Terms & Conditions */}
+                    <View className="flex-row items-start mb-4">
                         <TouchableOpacity
-                            onPress={() => router.push("/auth/verification")}
-                            className="bg-secondary py-5 rounded-2xl items-center shadow-xl shadow-orange-900/30 active:opacity-90"
+                            onPress={() => setAgreed(!agreed)}
+                            style={{ backgroundColor: agreed ? '#0A1B56' : 'transparent', borderColor: agreed ? '#0A1B56' : colors.border }}
+                            className="mt-0.5 w-[22px] h-[22px] border-2 rounded items-center justify-center"
                         >
-                            <Text className="text-white font-bold text-xl">Sign Up</Text>
+                            {agreed && <Ionicons name="checkmark" size={14} color="white" />}
                         </TouchableOpacity>
-
-                        <View className="flex-row items-center my-8">
-                            <View className="flex-1 h-[1px] bg-gray-200" />
-                            <Text className="mx-4 text-gray-500 font-medium text-base">Or sign up with</Text>
-                            <View className="flex-1 h-[1px] bg-gray-200" />
-                        </View>
-                        <View className="flex-row justify-between w-full px-4">
-                            <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-full w-14 h-14 bg-white shadow-sm">
-                                <Ionicons name="logo-google" size={28} color="#DB4437" />
-                            </TouchableOpacity>
-                            <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-full w-14 h-14 bg-white shadow-sm">
-                                <Ionicons name="logo-apple" size={28} color="#000000" />
-                            </TouchableOpacity>
-                            <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-full w-14 h-14 bg-white shadow-sm">
-                                <Ionicons name="logo-facebook" size={28} color="#1877F2" />
-                            </TouchableOpacity>
-                        </View>
+                        <Text className="text-[13px] flex-1 leading-5 ml-2.5" style={{ color: colors.textSecondary }}>
+                            <Text className="font-bold" style={{ color: "#0A1B56" }}>Agree With </Text>
+                            <Text className="font-bold" style={{ color: "#F1510C" }}>Terms & Conditions</Text>
+                        </Text>
                     </View>
-                </View>
 
-                <View className="flex-row justify-center mt-12 mb-4">
-                    <Text className="text-gray-500">Already have an account? </Text>
-                    <TouchableOpacity onPress={() => router.push("/auth/sign-in")}>
-                        <Text className="text-primary font-bold">Sign In</Text>
+                    {/* Sign Up Button */}
+                    <TouchableOpacity
+                        onPress={handleSignUp}
+                        disabled={authLoading}
+                        className={`py-4 rounded-xl items-center shadow-lg active:opacity-90 ${authLoading ? 'bg-gray-400' : 'bg-secondary'}`}
+                    >
+                        {authLoading ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                            <Text className="text-white font-bold text-[17px]">Sign Up</Text>
+                        )}
                     </TouchableOpacity>
+
+                    {/* Divider */}
+                    <View className="flex-row items-center my-4">
+                        <View className="flex-1 h-[1px]" style={{ backgroundColor: colors.border }} />
+                        <Text className="mx-3 font-medium text-[13px]" style={{ color: colors.textSecondary }}>Or sign up with</Text>
+                        <View className="flex-1 h-[1px]" style={{ backgroundColor: colors.border }} />
+                    </View>
+
+                    {/* Social Buttons */}
+                    <View className="flex-row justify-center gap-5">
+                        <TouchableOpacity className="w-[52px] h-[52px] border rounded-full items-center justify-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+                            <Ionicons name="logo-google" size={24} color="#DB4437" />
+                        </TouchableOpacity>
+                        <TouchableOpacity className="w-[52px] h-[52px] border rounded-full items-center justify-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+                            <Ionicons name="logo-apple" size={24} color={isDarkMode ? "#FFFFFF" : "#000000"} />
+                        </TouchableOpacity>
+                        <TouchableOpacity className="w-[52px] h-[52px] border rounded-full items-center justify-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+                            <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Sign In Link */}
+                    <View className="flex-row justify-center mt-6 mb-2">
+                        <Text style={{ color: colors.textSecondary }}>Already have an account? </Text>
+                        <TouchableOpacity onPress={() => router.push("/auth/sign-in")}>
+                            <Text className="font-bold" style={{ color: "#0A1B56" }}>Sign In</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
+

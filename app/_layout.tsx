@@ -1,13 +1,25 @@
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Image, View } from "react-native";
-import { ThemeProvider } from "../constants/ThemeContext";
+import { ThemeProvider, useTheme } from "../constants/ThemeContext";
 import "../global.css";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Inner layout that has access to ThemeContext
+function AppLayout() {
+  const { isDarkMode } = useTheme();
+  return (
+    <>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -34,7 +46,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <AppLayout />
     </ThemeProvider>
   );
 }
